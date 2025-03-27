@@ -1,8 +1,8 @@
 streamlit>=1.26.0
-torch
-torchaudio
-whisper
-llama-cpp-python
-python-docx
-requests
-huggingface_hub
+torch>=2.0.0       # Ensures compatibility with latest Whisper
+torchaudio>=2.0.0  # Matches PyTorch version
+openai-whisper     # Official Whisper package (handles dependencies automatically)
+llama-cpp-python>=0.2.0  # Ensures latest bug fixes
+python-docx>=0.8.11  # Stable version for .docx handling
+requests>=2.28.0
+huggingface_hub>=0.16.0
