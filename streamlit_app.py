@@ -1,7 +1,6 @@
 import os
 import streamlit as st
 import tempfile
-import torchaudio
 import whisper
 from llama_cpp import Llama
 from docx import Document
@@ -11,19 +10,21 @@ from huggingface_hub import hf_hub_download
 REPO_ID = "bhavanisankar-45/mistral"  # Replace with your Hugging Face repo
 MODEL_FILENAME = "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
 
-# Download model from Hugging Face
+# Ensure the model is downloaded to a valid location
 st.write("Fetching AI model from Hugging Face... This may take a while.")
-MODEL_PATH = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILENAME)
-st.write("Model loaded successfully!")
+MODEL_PATH = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILENAME, local_dir="models")
+st.write("Model downloaded successfully!")
 
-# Load LLaMA model
-llm = Llama(model_path=MODEL_PATH, n_ctx=1024)
+# Verify model file exists before loading
+if not os.path.exists(MODEL_PATH):
+    st.error("Model file not found. Please check the download path.")
+else:
+    llm = Llama(model_path=MODEL_PATH, n_ctx=1024)
 
 def transcribe_audio(audio_path):
     """Transcribe audio using Whisper."""
     model = whisper.load_model("base")
     try:
-        waveform, sample_rate = torchaudio.load(audio_path)
         result = model.transcribe(audio_path)
         return result["text"]
     except Exception as e:
