@@ -1,32 +1,33 @@
 import os
 import streamlit as st
-import tempfile
-import torchaudio
 import whisper
 from llama_cpp import Llama
+from huggingface_hub import hf_hub_download
 
-# Define model path
-MODEL_PATH = os.path.join(os.getcwd(), "models", "mistral-7b-instruct-v0.2.Q4_K_M.gguf")
+# Hugging Face model details
+REPO_ID = "bhavanisankar-45/mistral"  # Replace with your Hugging Face repo
+MODEL_FILENAME = "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+
+# Fetch model from Hugging Face
+st.write("Fetching AI model from Hugging Face... This may take a while.")
+MODEL_PATH = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILENAME)
+st.write("Model loaded successfully!")
 
 # Load LLaMA model
-st.write("Loading AI model...")
 llm = Llama(model_path=MODEL_PATH, n_ctx=4096)
-st.write("Model loaded successfully!")
 
 def transcribe_audio(audio_path):
     """Transcribe audio using Whisper."""
     model = whisper.load_model("base")
     try:
-        waveform, sample_rate = torchaudio.load(audio_path)
-        audio = waveform.numpy().flatten()
-        result = model.transcribe(audio)
+        result = model.transcribe(audio_path)
         return result["text"]
     except Exception as e:
         st.error(f"Error processing audio: {e}")
         return "Error processing audio."
 
 def generate_soap_note(conversation):
-    """Generate a SOAP note from user description."""
+    """Generate a structured SOAP note."""
     prompt = f"""
     Convert the following description into a structured SOAP note.
 
@@ -55,14 +56,7 @@ def generate_soap_note(conversation):
 
     SOAP Note:
     """
-
-    output = llm(
-        prompt=prompt,
-        max_tokens=400,
-        temperature=0.3,
-        stop=["###"]
-    )
-
+    output = llm(prompt=prompt, max_tokens=400, temperature=0.3, stop=["###"])
     return output["choices"][0]["text"].strip()
 
 st.title("PatientGPT - Describe Your Symptoms")
