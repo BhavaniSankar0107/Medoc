@@ -5,3 +5,4 @@ whisper
 llama-cpp-python
 python-docx
 requests
+huggingface_hub
