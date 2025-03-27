@@ -1,21 +1,36 @@
+import os
 import streamlit as st
 import tempfile
 import torchaudio
 import whisper
 from llama_cpp import Llama
 from docx import Document
-import os
+from huggingface_hub import hf_hub_download
 
-# Define model path relative to the project structure
-MODEL_PATH = os.path.join(os.getcwd(), "models", "mistral-7b-instruct-v0.2.Q4_K_M.gguf")
+# Hugging Face model details
+REPO_ID = "bhavanisankar-45/mistral"  # Replace with your Hugging Face repo
+MODEL_FILENAME = "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+MODEL_DIR = "models"
+MODEL_PATH = os.path.join(MODEL_DIR, MODEL_FILENAME)
 
-# Load LLaMA model with 4096 tokens
+# Ensure 'models' directory exists
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+# Download model from Hugging Face if not present
+if not os.path.exists(MODEL_PATH):
+    st.write("Downloading model from Hugging Face... This may take a while.")
+    hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILENAME, local_dir=MODEL_DIR)
+    st.write("Download complete!")
+else:
+    st.write("Model found locally. Skipping download.")
+
+# Load LLaMA model with 1024 tokens
 st.write("Loading AI model...")
-llm = Llama(model_path=MODEL_PATH, n_ctx=4096)
+llm = Llama(model_path=MODEL_PATH, n_ctx=1024)
 st.write("Model loaded successfully!")
 
 def transcribe_audio(audio_path):
-    """Transcribe audio using Whisper model."""
+    """Load audio using torchaudio and transcribe with Whisper."""
     model = whisper.load_model("base")
     try:
         waveform, sample_rate = torchaudio.load(audio_path)
@@ -27,7 +42,7 @@ def transcribe_audio(audio_path):
         return "Error processing audio."
 
 def generate_soap_note(conversation):
-    """Generate a structured SOAP note from the transcription using LLaMA model."""
+    """Generate a structured SOAP note from the transcription using the LLaMA model."""
     prompt = f"""
     Convert the following conversation into a structured SOAP note.
 
@@ -57,6 +72,7 @@ def generate_soap_note(conversation):
     SOAP Note:
     """
 
+    # Generate response from LLaMA model
     output = llm(
         prompt=prompt,
         max_tokens=400,
@@ -67,20 +83,20 @@ def generate_soap_note(conversation):
     return output["choices"][0]["text"].strip()
 
 def save_soap_note_to_word(soap_note):
-    """Save the SOAP note as a Word document."""
+    """Save the SOAP note as a properly formatted Word document and return the file path."""
     doc = Document()
     doc.add_heading("SOAP Note", level=1)
 
-    sections = soap_note.split("\n\n")
+    sections = soap_note.split("\n\n")  # Split based on double newlines
     for section in sections:
-        if ":" in section:
+        if ":" in section:  # Ensures it's a section header
             lines = section.split("\n")
-            doc.add_heading(lines[0].strip(), level=2)
-            for line in lines[1:]:
+            doc.add_heading(lines[0].strip(), level=2)  # Bold the section title
+            for line in lines[1:]:  # Add bullet points for each line
                 if ":" in line:
-                    doc.add_paragraph(f"• {line.strip()}")
+                    doc.add_paragraph(f"• {line.strip()}")  # Bullet point
                 else:
-                    doc.add_paragraph(line.strip())
+                    doc.add_paragraph(line.strip())  # Regular text
 
     temp_word_file = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
     doc.save(temp_word_file.name)
@@ -103,17 +119,20 @@ if option == "Upload Audio":
 
         st.audio(audio_file, format="audio/wav")
 
+        # Analyze button
         if st.button("Analyze"):
             st.write("Transcribing...")
             transcription = transcribe_audio(audio_file)
             st.subheader("Transcription:")
             st.write(transcription)
 
+            # Generate SOAP note
             st.write("Generating SOAP Note...")
             soap_note = generate_soap_note(transcription)
             st.subheader("SOAP Note:")
             st.write(soap_note)
 
+            # Save and provide download option
             soap_note_file = save_soap_note_to_word(soap_note)
             with open(soap_note_file, "rb") as file:
                 st.download_button(
@@ -123,4 +142,6 @@ if option == "Upload Audio":
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
 
-        os.remove(audio_file)
+        # Cleanup after analysis
+        if audio_file:
+            os.remove(audio_file)
