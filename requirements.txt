@@ -1,1 +1,7 @@
 streamlit>=1.26.0
+torch
+torchaudio
+whisper
+llama-cpp-python
+python-docx
+requests
